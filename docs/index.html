@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'">
+<title>YouTrend · Trend Radar</title>
+<style>
+  :root {
+    --bg: #0E0F12; --surface: #16181D; --hair: #2A2D34; --text: #ECE8E1; --muted: #9A968E; --accent: #FF5A36;
+    --search: #7AA2FF; --news: #FFB86B; --meme: #FF6AD5; --rec: #5AF2A0;
+    --serif: "Iowan Old Style", Georgia, serif;
+    --sans: -apple-system, "Segoe UI", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 16px; line-height: 1.45; }
+  a { color: var(--text); text-decoration: underline; text-decoration-color: var(--hair); text-underline-offset: 3px; }
+  a:hover { text-decoration-color: var(--accent); }
+  .num, .pill, #timer, #gource-ticker { font-variant-numeric: tabular-nums; }
+  .wrap { max-width: 1320px; margin: 0 auto; padding: 32px 24px 64px; }
+  header.mast { border-bottom: 1px solid var(--hair); padding-bottom: 20px; margin-bottom: 28px; }
+  .wordmark { font-family: var(--serif); font-size: 56px; line-height: 1; letter-spacing: -0.02em; margin: 0; }
+  .wordmark span { color: var(--accent); }
+  .tagline { font-family: var(--serif); font-size: 22px; color: var(--muted); margin: 8px 0 0; }
+  .track { font-size: 12px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); margin-top: 10px; }
+  .search { display: flex; gap: 12px; align-items: stretch; flex-wrap: wrap; }
+  #niche { flex: 1 1 420px; font-size: 24px; font-family: var(--serif); background: var(--surface); color: var(--text);
+           border: 1px solid var(--hair); border-radius: 10px; padding: 16px 18px; outline: none; }
+  #niche:focus { border-color: var(--accent); }
+  button { font-family: var(--sans); cursor: pointer; border-radius: 8px; border: 1px solid var(--hair);
+           background: var(--surface); color: var(--text); padding: 8px 14px; font-size: 14px; }
+  button:hover { border-color: var(--accent); }
+  button:disabled { opacity: 0.5; cursor: progress; }
+  #scan { background: var(--accent); color: #0E0F12; border: none; font-weight: 700; font-size: 18px; padding: 0 28px; }
+  #timer { align-self: center; color: var(--muted); min-width: 4ch; font-size: 18px; }
+  #status { margin: 16px 0 0; min-height: 0; }
+  #status.show { padding: 12px 16px; border-left: 4px solid var(--accent); background: rgba(255, 90, 54, 0.1); border-radius: 6px; }
+  #status.info { border-left-color: var(--muted); background: var(--surface); }
+  .grid { display: grid; gap: 28px; margin-top: 28px; grid-template-columns: 1fr; }
+  @media (min-width: 1100px) {
+    .grid { grid-template-columns: 62fr 38fr; grid-template-areas: "topics side" "brief side"; }
+    #topics { grid-area: topics; } #side { grid-area: side; align-self: start; position: sticky; top: 16px; } #brief { grid-area: brief; }
+  }
+  section.panel { background: var(--surface); border: 1px solid var(--hair); border-radius: 12px; padding: 20px; }
+  h2 { font-family: var(--serif); font-weight: 400; font-size: 26px; margin: 0 0 12px; letter-spacing: -0.01em; }
+  h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); margin: 0 0 6px; font-weight: 600; }
+  .muted { color: var(--muted); }
+  .small { font-size: 13px; }
+  .empty { color: var(--muted); font-style: italic; }
+  .card { display: grid; grid-template-columns: 64px 1fr; gap: 16px; padding: 18px 0; border-top: 1px solid var(--hair); }
+  .card:first-of-type { border-top: none; }
+  .rank { font-family: var(--serif); font-size: 56px; line-height: 0.9; color: var(--accent); }
+  .ctitle { font-family: var(--serif); font-size: 24px; line-height: 1.15; margin: 0 0 8px; letter-spacing: -0.01em; }
+  .meta { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+  .chip { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; padding: 3px 8px; border-radius: 999px; border: 1px solid currentColor; }
+  .role-search { color: var(--search); } .role-news { color: var(--news); } .role-meme { color: var(--meme); } .role-rec { color: var(--rec); }
+  .pill { font-size: 13px; padding: 3px 10px; border-radius: 999px; background: var(--bg); border: 1px solid var(--hair); }
+  .badge { font-size: 12px; padding: 3px 8px; border-radius: 6px; background: rgba(255, 90, 54, 0.15); color: var(--accent); }
+  details { margin: 6px 0 10px; font-size: 14px; }
+  summary { cursor: pointer; color: var(--muted); }
+  details table { border-collapse: collapse; margin-top: 6px; }
+  details td { padding: 2px 12px 2px 0; }
+  .sources { list-style: none; margin: 8px 0 12px; padding: 0; display: grid; gap: 8px; }
+  .src { border: 1px solid var(--hair); border-radius: 8px; padding: 8px 10px; background: var(--bg); font-size: 14px; }
+  .src b { color: var(--text); margin-right: 6px; }
+  .src .snip { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .recblock { padding: 12px 0; border-top: 1px solid var(--hair); }
+  .recblock:first-of-type { border-top: none; padding-top: 0; }
+  .from { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .recval { font-size: 15px; }
+  .hooks { margin: 4px 0 0; padding-left: 18px; }
+  .hooks li { margin-bottom: 8px; }
+  #side { display: grid; gap: 28px; }
+  #gource-tree { width: 100%; height: auto; display: block; background: var(--bg); border-radius: 8px; border: 1px solid var(--hair); }
+  #gource-tree text { font-family: var(--sans); font-size: 10px; fill: var(--muted); }
+  #gource-tree line, #gource-tree circle, #gource-tree text { transition: opacity 0.4s, r 0.3s; }
+  #gource-ticker { font-size: 12px; color: var(--muted); min-height: 1.4em; margin: 8px 0; }
+  .legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; margin: 8px 0; }
+  .legend span::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: currentColor; margin-right: 5px; }
+  .treebar { display: flex; gap: 8px; }
+  .caption { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .refused { border: 1px dashed var(--accent); border-radius: 10px; padding: 16px; color: var(--accent); font-family: var(--serif); font-size: 20px; }
+  .bfield { margin: 12px 0; }
+  .why { margin: 4px 0; padding-left: 0; list-style: none; }
+  .why li { margin-bottom: 8px; font-family: var(--serif); font-size: 17px; }
+  .why sup { color: var(--accent); cursor: pointer; font-family: var(--sans); font-size: 12px; margin-left: 3px; }
+  .cites { padding-left: 22px; font-size: 14px; }
+  .disclaimer { border-top: 1px solid var(--hair); margin-top: 16px; padding-top: 12px; font-size: 13px; color: var(--muted); }
+  footer.foot { margin-top: 40px; font-size: 13px; color: var(--muted); border-top: 1px solid var(--hair); padding-top: 16px; }
+  .lanes { display: grid; gap: 22px; }
+  @media (min-width: 980px) { .lanes { grid-template-columns: 1fr 1fr; } }
+  .lane-h { font-family: var(--serif); font-size: 22px; font-weight: 400; letter-spacing: -0.02em; text-transform: none; color: var(--text); margin: 0 0 10px; }
+  .lane .empty { margin-bottom: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="mast">
+    <h1 class="wordmark">You<span>Trend</span></h1>
+    <p class="tagline">Trending topics and viral stuff, with sources. Frozen You.com snapshot for the web.</p>
+    <div class="track">Public snapshot · You.com Search + Contents · scores are HEURISTIC · not a live key</div>
+  </header>
+
+  <div class="search">
+    <input id="niche" type="text" maxlength="80" value="viral trends" placeholder="viral trends, memes, your niche" autocomplete="off">
+    <button id="scan" type="button">Replay snapshot</button>
+    <span id="timer" aria-label="Elapsed seconds">0.0s</span>
+  </div>
+  <div id="status" role="status" aria-live="polite"></div>
+
+  <div class="grid">
+    <section id="topics" class="panel" aria-label="Dashboard of trending topics and viral stuff">
+      <h2>Dashboard</h2>
+      <p class="empty" id="topics-empty">Loading live trending topics and viral stuff…</p>
+      <div id="topic-list" class="lanes">
+        <div class="lane">
+          <h3 class="lane-h">Trending</h3>
+          <p class="empty" id="trend-empty" hidden>No trending hits in this scan.</p>
+          <div id="topic-list-trend"></div>
+        </div>
+        <div class="lane">
+          <h3 class="lane-h">Viral</h3>
+          <p class="empty" id="viral-empty" hidden>No viral/meme hits in this scan.</p>
+          <div id="topic-list-viral"></div>
+        </div>
+      </div>
+    </section>
+
+    <div id="side">
+      <section id="recs" class="panel" aria-label="Recommendations">
+        <h2>What to make first</h2>
+        <p class="empty" id="recs-message">Recommendations appear after a scan.</p>
+        <div id="recs-blocks" hidden>
+          <div class="recblock" id="rec-focus"><h3>Focus</h3><div class="from"></div><div class="recval"></div></div>
+          <div class="recblock" id="rec-hook"><h3>Hook</h3><div class="from"></div><div class="recval"></div></div>
+          <div class="recblock" id="rec-timing"><h3>Timing</h3><div class="from"></div><div class="recval"></div></div>
+          <div class="recblock" id="rec-content"><h3>Content</h3><div class="from"></div><div class="recval"></div></div>
+        </div>
+        <p class="small muted" id="recs-note"></p>
+      </section>
+
+      <section class="panel" aria-label="Trend tree">
+        <h2>Trend tree</h2>
+        <svg id="gource-tree" viewBox="0 0 600 600" role="img" aria-label="Trend tree of this scan"></svg>
+        <p id="gource-empty" class="empty">No scan yet. The tree plays after a scan.</p>
+        <div id="gource-ticker" aria-live="off"></div>
+        <div class="legend">
+          <span class="role-search">search</span><span class="role-news">news</span><span class="role-meme">meme</span><span class="role-rec">rec</span>
+        </div>
+        <div class="treebar">
+          <button id="gource-replay" type="button">Replay</button>
+          <button id="gource-download" type="button">Download .gource.log</button>
+        </div>
+        <p class="caption">Gource-format log of this scan. Synthetic paths built from live You.com results. Not git history.</p>
+      </section>
+    </div>
+
+    <section id="brief" class="panel" aria-label="Creator brief">
+      <h2>Brief</h2>
+      <div id="brief-body"><p class="empty">Pick a topic and hit Write brief. Every line cites a source, or YouTrend refuses.</p></div>
+      <div class="bfield"><button id="copy-brief" type="button" hidden>Copy brief</button></div>
+      <p class="disclaimer" id="brief-disclaimer">YouTrend surfaces public signals. It does not guarantee virality. Trends are volatile; use your own judgment.</p>
+    </section>
+  </div>
+
+  <footer class="foot">Scores are a hand-set HEURISTIC (recency, corroboration, cross-query hits, news). Not a prediction. Never a virality promise.</footer>
+</div>
+
+<script>
+"use strict";
+(function () {
+  var ROLE_COLOR = { search: "#7AA2FF", news: "#FFB86B", meme: "#FF6AD5", rec: "#5AF2A0" };
+  var ACCENT = "#FF5A36";
+  var SVGNS = "http://www.w3.org/2000/svg";
+  var $ = function (id) { return document.getElementById(id); };
+  var state = { topics: [], trending: [], viral: [], weights: {}, lines: [], playTimer: null, scanTimer: null, brief: null };
+
+  function safeHref(u){ return /^https?:\/\//i.test(u) ? u : "#"; }
+
+  function el(tag, attrs, kids) {
+    var e = document.createElement(tag);
+    if (attrs) for (var k in attrs) {
+      if (k === "text") e.textContent = attrs[k];
+      else if (k === "class") e.className = attrs[k];
+      else e.setAttribute(k, attrs[k]);
+    }
+    (kids || []).forEach(function (c) { if (c) e.appendChild(typeof c === "string" ? document.createTextNode(c) : c); });
+    return e;
+  }
+  function svg(tag, attrs) {
+    var e = document.createElementNS(SVGNS, tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+  function domain(u) {
+    try { return new URL(u).hostname.replace(/^www\./, ""); } catch (e) { return ""; }
+  }
+  function link(u, text) {
+    return el("a", { href: safeHref(u), target: "_blank", rel: "noopener noreferrer", text: text });
+  }
+  function sourceChip(c) {
+    return el("li", { class: "src" }, [el("b", { text: domain(c.url) }), link(c.url, c.title), el("span", { class: "snip", text: c.snippet })]);
+  }
+
+  // ---------- status + timer ----------
+  function setStatus(msg, kind) {
+    var s = $("status");
+    s.textContent = msg || "";
+    s.className = msg ? ("show" + (kind === "info" ? " info" : "")) : "";
+  }
+  function messageFor(status, body) {
+    if (status === 503) return "Live search is not configured on this public snapshot.";
+    if (body && typeof body.message === "string") return body.message;
+    return "Something went wrong. Try again.";
+  }
+  function startTimer() {
+    var t0 = Date.now(), warned = false;
+    $("timer").textContent = "0.0s";
+    state.scanTimer = setInterval(function () {
+      var s = (Date.now() - t0) / 1000;
+      $("timer").textContent = s.toFixed(1) + "s";
+      if (s >= 15 && !warned) { warned = true; setStatus("Still searching the live web…", "info"); }
+    }, 100);
+  }
+  function stopTimer() { clearInterval(state.scanTimer); state.scanTimer = null; }
+
+  async function postJSON(path, body) {
+    var r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+    var j = null;
+    try { j = await r.json(); } catch (e) { j = null; }
+    return { status: r.status, body: j };
+  }
+
+  // ---------- scan ----------
+  async function scan() {
+    $("scan").disabled = true;
+    setStatus("");
+    $("topics-empty").hidden = false;
+    $("topics-empty").textContent = "Loading snapshot…";
+    startTimer();
+    var j = null, briefs = {};
+    try {
+      var r = await fetch("data/scan.json", { cache: "no-store" });
+      if (r.ok) j = await r.json();
+      var b = await fetch("data/briefs.json", { cache: "no-store" });
+      if (b.ok) briefs = await b.json();
+    } catch (e) { j = null; }
+    stopTimer();
+    $("scan").disabled = false;
+    if (!j || !j.lanes) {
+      setStatus("Could not load the public snapshot.");
+      clearTree();
+      return;
+    }
+    $("niche").value = j.niche || "viral trends";
+    $("niche").readOnly = true;
+    state.topics = j.topics || [];
+    state.trending = (j.lanes && j.lanes.trending) || [];
+    state.viral = (j.lanes && j.lanes.viral) || [];
+    state.weights = (j.ranking && j.ranking.weights) || {};
+    state.briefs = briefs || {};
+    state.lines = Array.isArray(j.gource_log) ? j.gource_log.slice() : [];
+    setStatus("Public snapshot from You.com · " + (j.generated_at || "") + " · live scan stays on the local app.", "info");
+    renderTopics();
+    renderRecs(j.recommendations);
+    play();
+  }
+
+  function topicCard(t, i) {
+    var meta = el("div", { class: "meta" }, [
+      el("span", { class: "chip role-" + t.role, text: t.role }),
+      el("span", { class: "pill", text: "HEURISTIC " + Number(t.score).toFixed(1) + "/10 · " + t.momentum + " momentum" })
+    ]);
+    if (!t.brief_available) meta.appendChild(el("span", { class: "badge", text: "No usable sources" }));
+    var rows = ["recency", "corroboration", "fanout", "news"].map(function (k) {
+      return el("tr", null, [el("td", { text: k }), el("td", { class: "num", text: String(t.breakdown[k]) }),
+                             el("td", { class: "num muted", text: "× " + String(state.weights[k]) })]);
+    });
+    var why = el("details", null, [el("summary", { text: "Why this score" }),
+      el("table", null, rows),
+      el("p", { class: "small muted", text: "Hand-set HEURISTIC weights. Not trained, not a prediction." })]);
+    var sources = el("ul", { class: "sources" }, (t.citations || []).map(sourceChip));
+    var btn = el("button", { type: "button", text: "Write brief" });
+    btn.addEventListener("click", function () { writeBrief(t.id, btn); });
+    return el("article", { class: "card" }, [
+      el("div", { class: "rank num", text: String(i + 1) }),
+      el("div", null, [el("h3", { class: "ctitle", text: t.title }), meta, why, sources, btn])
+    ]);
+  }
+
+  function fillLane(listId, emptyId, items) {
+    var list = $(listId);
+    list.replaceChildren();
+    $(emptyId).hidden = items.length > 0;
+    items.forEach(function (t, i) { list.appendChild(topicCard(t, i)); });
+  }
+
+  function renderTopics() {
+    var trending = state.trending || [];
+    var viral = state.viral || [];
+    $("topics-empty").hidden = trending.length + viral.length > 0;
+    fillLane("topic-list-trend", "trend-empty", trending);
+    fillLane("topic-list-viral", "viral-empty", viral);
+  }
+
+  function topicLabel(id) {
+    var all = state.topics.concat(state.trending || []).concat(state.viral || []);
+    for (var i = 0; i < all.length; i++)
+      if (all[i].id === id) return "from · " + all[i].title;
+    return "";
+  }
+
+  function setBlock(id, fromId, valueNode) {
+    var b = $(id);
+    b.querySelector(".from").textContent = topicLabel(fromId);
+    var v = b.querySelector(".recval");
+    v.replaceChildren(valueNode);
+  }
+
+  function renderRecs(r) {
+    $("recs-note").textContent = r && r.note ? r.note : "";
+    if (!r || !r.available) {
+      $("recs-blocks").hidden = true;
+      $("recs-message").hidden = false;
+      $("recs-message").textContent = (r && r.message) || "No recommendations.";
+      return;
+    }
+    $("recs-message").hidden = true;
+    $("recs-blocks").hidden = false;
+    setBlock("rec-focus", r.focus.topic_id, el("div", null, [
+      el("strong", { text: r.focus.title }),
+      el("div", { class: "small muted", text: "HEURISTIC " + Number(r.focus.score).toFixed(1) + "/10 · " + r.focus.momentum + " momentum. " + r.focus.reason })]));
+    var hooks = el("ol", { class: "hooks" }, r.hooks.map(function (h) {
+      return el("li", null, [el("div", { text: h.text }),
+        el("div", { class: "small" }, [el("b", { text: domain(h.source_url) + " " }), link(h.source_url, "source")])]);
+    }));
+    setBlock("rec-hook", r.focus.topic_id, hooks);
+    setBlock("rec-timing", r.timing.topic_id, el("div", null, [
+      el("strong", { text: r.timing.window }), el("span", { text: " · " + r.timing.label }),
+      el("div", { class: "small muted", text: r.timing.basis })]));
+    setBlock("rec-content", r.content_format.topic_id, el("div", { text: r.content_format.format }));
+  }
+
+  // ---------- brief ----------
+  async function writeBrief(id, btn) {
+    btn.disabled = true;
+    var res;
+    var cached = (state.briefs || {})[id];
+    res = cached ? { status: 200, body: cached } : { status: 404, body: { message: "Brief not in this snapshot." } };
+    btn.disabled = false;
+    var body = $("brief-body");
+    body.replaceChildren();
+    state.brief = null;
+    $("copy-brief").hidden = true;
+    if (res.status === 409) {
+      setStatus(messageFor(409, res.body));
+      body.appendChild(el("div", { class: "refused", text: "Refused: no usable sources. YouTrend won't write a brief without citations." }));
+      if (res.body && res.body.title) body.appendChild(el("p", { class: "muted small", text: "Topic: " + res.body.title }));
+      return;
+    }
+    if (res.status !== 200) {
+      setStatus(res.status === 0 ? "Could not reach the YouTrend server." : messageFor(res.status, res.body));
+      return;
+    }
+    setStatus("");
+    var b = res.body;
+    state.brief = b;
+    function field(label, text) { return el("div", { class: "bfield" }, [el("h3", { text: label }), el("div", { text: text })]); }
+    body.appendChild(el("h3", { class: "ctitle", text: b.title }));
+    body.appendChild(field("Format idea", b.format_idea));
+    body.appendChild(field("Hook", b.hook));
+    body.appendChild(field("Timing tip", b.timing_tip));
+    body.appendChild(field("Content tip", b.content_tip));
+    var why = el("ul", { class: "why" }, b.why_now.map(function (w) {
+      var sup = el("sup", { text: "[" + w.cite + "]", title: "Jump to source " + w.cite });
+      sup.addEventListener("click", function () { var t = $("brief-cite-" + w.cite); if (t) t.scrollIntoView({ behavior: "smooth", block: "center" }); });
+      return el("li", null, [el("span", { text: "“" + w.quote + "”" }), sup]);
+    }));
+    body.appendChild(el("div", { class: "bfield" }, [el("h3", { text: "Why now" }), why]));
+    body.appendChild(field("Confidence", b.confidence + " (" + b.confidence_basis + ")"));
+    var cites = el("ol", { class: "cites" }, b.citations.map(function (c, i) {
+      return el("li", { id: "brief-cite-" + (i + 1) }, [el("b", { text: domain(c.url) + " " }), link(c.url, c.title)]);
+    }));
+    body.appendChild(el("div", { class: "bfield" }, [el("h3", { text: "Sources" }), cites]));
+    $("copy-brief").hidden = false;
+  }
+
+  function briefText(b) {
+    var out = [b.title, "", "Format idea: " + b.format_idea, "Hook: " + b.hook, "Timing: " + b.timing_tip,
+               "Content tip: " + b.content_tip, "", "Why now:"];
+    b.why_now.forEach(function (w) { out.push("- \"" + w.quote + "\" [" + w.cite + "]"); });
+    out.push("", "Confidence: " + b.confidence + " (" + b.confidence_basis + ")", "", "Sources:");
+    b.citations.forEach(function (c, i) { out.push("[" + (i + 1) + "] " + c.title + " " + c.url); });
+    out.push("", b.disclaimer);
+    return out.join("\n");
+  }
+
+  // ---------- gource tree ----------
+  var BRANCH_ANGLE = { web: -90, news: 0, social: 90, rec: 180 };
+  var tree = null;
+
+  function clearTree() {
+    if (state.playTimer) { clearInterval(state.playTimer); state.playTimer = null; }
+    $("gource-tree").replaceChildren();
+    $("gource-ticker").textContent = "";
+    $("gource-empty").hidden = false;
+    state.lines = [];
+    tree = null;
+  }
+
+  function resetTreeSvg() {
+    var s = $("gource-tree");
+    s.replaceChildren();
+    var gEdges = svg("g", {}), gNodes = svg("g", {});
+    s.appendChild(gEdges); s.appendChild(gNodes);
+    tree = { edges: gEdges, nodes: gNodes, branches: {}, leaves: {}, order: {}, root: null };
+  }
+
+  function polar(deg, r) {
+    var a = deg * Math.PI / 180;
+    return { x: 300 + r * Math.cos(a), y: 300 + r * Math.sin(a) };
+  }
+
+  function ensureRoot(name) {
+    if (tree.root) return;
+    var c = svg("circle", { cx: 300, cy: 300, r: 9, fill: ACCENT });
+    var t = svg("text", { x: 300, y: 322, "text-anchor": "middle" });
+    t.textContent = name.slice(0, 24);
+    tree.nodes.appendChild(c); tree.nodes.appendChild(t);
+    tree.root = c;
+  }
+
+  function ensureBranch(p) {
+    if (tree.branches[p]) return tree.branches[p];
+    var pos = polar(BRANCH_ANGLE[p] !== undefined ? BRANCH_ANGLE[p] : 135, 120);
+    var line = svg("line", { x1: 300, y1: 300, x2: pos.x, y2: pos.y, stroke: "#2A2D34", "stroke-width": 2 });
+    var c = svg("circle", { cx: pos.x, cy: pos.y, r: 5, fill: "#9A968E" });
+    var t = svg("text", { x: pos.x, y: pos.y - 9, "text-anchor": "middle" });
+    t.textContent = p;
+    tree.edges.appendChild(line); tree.nodes.appendChild(c); tree.nodes.appendChild(t);
+    tree.branches[p] = { pos: pos, angle: BRANCH_ANGLE[p] !== undefined ? BRANCH_ANGLE[p] : 135 };
+    tree.order[p] = [];
+    return tree.branches[p];
+  }
+
+  function respace(p) {
+    var b = tree.branches[p], keys = tree.order[p], n = keys.length;
+    keys.forEach(function (k, i) {
+      var deg = n === 1 ? b.angle : b.angle - 40 + (80 * i) / (n - 1);
+      var pos = polar(deg, 240), leaf = tree.leaves[k];
+      leaf.line.setAttribute("x2", pos.x); leaf.line.setAttribute("y2", pos.y);
+      leaf.circle.setAttribute("cx", pos.x); leaf.circle.setAttribute("cy", pos.y);
+      leaf.ring.setAttribute("cx", pos.x); leaf.ring.setAttribute("cy", pos.y);
+      leaf.label.setAttribute("x", pos.x); leaf.label.setAttribute("y", pos.y + 18);
+    });
+  }
+
+  function parseLine(line) {
+    var parts = line.split("|");
+    if (parts.length !== 4) return null;
+    var segs = parts[3].split("/").filter(Boolean);
+    return { ts: parseInt(parts[0], 10), role: parts[1], type: parts[2], path: parts[3],
+             niche: segs[0] || "", platform: segs[1] || "web", slug: segs.slice(2).join("/") || "" };
+  }
+
+  function applyEvent(ev) {
+    ensureRoot(ev.niche);
+    var b = ensureBranch(ev.platform);
+    var leaf = tree.leaves[ev.path];
+    var color = ROLE_COLOR[ev.role] || "#9A968E";
+    if (ev.type === "A" && !leaf) {
+      var line = svg("line", { x1: b.pos.x, y1: b.pos.y, x2: b.pos.x, y2: b.pos.y, stroke: color, "stroke-opacity": 0.5, "stroke-width": 1.5 });
+      var ring = svg("circle", { cx: b.pos.x, cy: b.pos.y, r: 14, fill: "none", stroke: ACCENT, "stroke-width": 2, opacity: 0 });
+      var circle = svg("circle", { cx: b.pos.x, cy: b.pos.y, r: 6, fill: color });
+      var label = svg("text", { x: b.pos.x, y: b.pos.y, "text-anchor": "middle" });
+      label.textContent = ev.slug.length > 18 ? ev.slug.slice(0, 17) + "…" : ev.slug;
+      var title = svg("title", {}); title.textContent = ev.platform + "/" + ev.slug; circle.appendChild(title);
+      tree.edges.appendChild(line); tree.nodes.appendChild(ring); tree.nodes.appendChild(circle); tree.nodes.appendChild(label);
+      tree.leaves[ev.path] = { line: line, ring: ring, circle: circle, label: label };
+      tree.order[ev.platform].push(ev.path);
+      respace(ev.platform);
+    } else if (ev.type === "M" && leaf) {
+      leaf.circle.setAttribute("r", 10);
+      leaf.ring.setAttribute("opacity", 1);
+      leaf.label.style.fill = "#ECE8E1";
+    } else if (ev.type === "D" && leaf) {
+      [leaf.line, leaf.circle, leaf.label, leaf.ring].forEach(function (n) { n.setAttribute("opacity", 0.15); });
+    }
+    var d = new Date(ev.ts * 1000);
+    var pad = function (x) { return String(x).padStart(2, "0"); };
+    $("gource-ticker").textContent = d.getUTCFullYear() + "-" + pad(d.getUTCMonth() + 1) + "-" + pad(d.getUTCDate()) + " " +
+      pad(d.getUTCHours()) + ":" + pad(d.getUTCMinutes()) + " UTC · " + ev.role + " · " + ev.type + " · " + ev.platform + "/" + ev.slug;
+  }
+
+  function play() {
+    if (state.playTimer) { clearInterval(state.playTimer); state.playTimer = null; }
+    if (!state.lines.length) { clearTree(); return; }
+    $("gource-empty").hidden = true;
+    resetTreeSvg();
+    var events = state.lines.map(parseLine).filter(Boolean), i = 0;
+    state.playTimer = setInterval(function () {
+      if (i >= events.length) { clearInterval(state.playTimer); state.playTimer = null; return; }
+      applyEvent(events[i++]);
+    }, 220);
+  }
+
+  async function loadTree() {
+    if (!state.lines.length) { clearTree(); return; }
+    play();
+  }
+
+  function download() {
+    if (!state.lines.length) { setStatus("No scan yet. The tree plays after a scan.", "info"); return; }
+    var blob = new Blob([state.lines.join("\n") + "\n"], { type: "text/plain" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "youtrend-scan.gource.log";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  }
+
+  // ---------- wire up ----------
+  $("scan").addEventListener("click", scan);
+  $("niche").addEventListener("keydown", function (e) { if (e.key === "Enter") scan(); });
+  $("gource-replay").addEventListener("click", play);
+  $("gource-download").addEventListener("click", download);
+  $("copy-brief").addEventListener("click", function () {
+    if (!state.brief) return;
+    navigator.clipboard.writeText(briefText(state.brief)).then(
+      function () { setStatus("Brief copied.", "info"); },
+      function () { setStatus("Copy failed. Select the text manually."); });
+  });
+  if (!$("niche").value.trim()) $("niche").value = "viral trends";
+  scan();
+})();
+</script>
+</body>
+</html>
